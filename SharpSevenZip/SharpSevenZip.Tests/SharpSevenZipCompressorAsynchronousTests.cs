@@ -12,39 +12,28 @@ public class SharpSevenZipCompressorAsynchronousTests : TestBase
         var fileCompressionStartedInvoked = 0;
         var fileCompressionFinishedInvoked = 0;
         var compressingInvoked = 0;
-        var compressionFinishedInvoked = 0;
+        using var compressionFinished = new System.Threading.ManualResetEventSlim(false);
 
         var compressor = new SharpSevenZipCompressor();
 
-        compressor.FilesFound += (o, e) => filesFoundInvoked++;
-        compressor.FileCompressionStarted += (o, e) => fileCompressionStartedInvoked++;
-        compressor.FileCompressionFinished += (o, e) => fileCompressionFinishedInvoked++;
-        compressor.Compressing += (o, e) => compressingInvoked++;
-        compressor.CompressionFinished += (o, e) => compressionFinishedInvoked++;
+        compressor.FilesFound += (o, e) => System.Threading.Interlocked.Increment(ref filesFoundInvoked);
+        compressor.FileCompressionStarted += (o, e) => System.Threading.Interlocked.Increment(ref fileCompressionStartedInvoked);
+        compressor.FileCompressionFinished += (o, e) => System.Threading.Interlocked.Increment(ref fileCompressionFinishedInvoked);
+        compressor.Compressing += (o, e) => System.Threading.Interlocked.Increment(ref compressingInvoked);
+        compressor.CompressionFinished += (o, e) => compressionFinished.Set();
 
         compressor.BeginCompressDirectory(@"TestData", TemporaryFile);
 
-        var timeToWait = 10000;
-        while (compressionFinishedInvoked == 0)
-        {
-            if (timeToWait <= 0)
-            {
-                break;
-            }
-
-            Thread.Sleep(25);
-            //timeToWait -= 25;
-        }
+        Assert.That(compressionFinished.Wait(TimeSpan.FromSeconds(10)), Is.True, "Compression did not finish in time.");
 
         var numberOfTestDataFiles = Directory.GetFiles("TestData").Length;
 
         Assert.Multiple(() =>
         {
-            Assert.That(filesFoundInvoked, Is.EqualTo(1));
-            Assert.That(fileCompressionStartedInvoked, Is.EqualTo(numberOfTestDataFiles));
-            Assert.That(fileCompressionFinishedInvoked, Is.EqualTo(numberOfTestDataFiles));
-            Assert.That(compressingInvoked, Is.EqualTo(numberOfTestDataFiles));
-            Assert.That(compressionFinishedInvoked, Is.EqualTo(1));
+            Assert.That(System.Threading.Interlocked.CompareExchange(ref filesFoundInvoked, 0, 0), Is.EqualTo(1));
+            Assert.That(System.Threading.Interlocked.CompareExchange(ref fileCompressionStartedInvoked, 0, 0), Is.EqualTo(numberOfTestDataFiles));
+            Assert.That(System.Threading.Interlocked.CompareExchange(ref fileCompressionFinishedInvoked, 0, 0), Is.EqualTo(numberOfTestDataFiles));
+            Assert.That(System.Threading.Interlocked.CompareExchange(ref compressingInvoked, 0, 0), Is.GreaterThan(0));
 
             Assert.That(File.Exists(TemporaryFile), Is.True);
         });
