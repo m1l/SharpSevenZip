@@ -46,6 +46,10 @@
       <Pack>true</Pack>
       <PackagePath>build\x64</PackagePath>
     </None>
+    <None Include="arm64\7z.dll">
+      <Pack>true</Pack>
+      <PackagePath>build\arm64</PackagePath>
+    </None>
     <None Include="SharpSevenZip.targets">
       <PackagePath>build</PackagePath>
       <Pack>true</Pack>
@@ -78,6 +82,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="x86\7z.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="arm64\7z.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

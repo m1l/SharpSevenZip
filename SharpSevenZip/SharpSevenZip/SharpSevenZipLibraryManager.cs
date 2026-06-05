@@ -40,7 +40,15 @@ internal static class SharpSevenZipLibraryManager
             return null;
         }
 
-        return Path.Combine(location, Environment.Is64BitProcess ? "x64" : "x86", "7z.dll");
+        string architecture = RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.Arm64 => "arm64",
+            Architecture.X64 => "x64",
+            Architecture.X86 => "x86",
+            _ => Environment.Is64BitProcess ? "x64" : "x86"
+        };
+
+        return Path.Combine(location, architecture, "7z.dll");
     }
 
     /// <summary>

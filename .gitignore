@@ -26,6 +26,8 @@ mono_crash.*
 [Ww][Ii][Nn]32/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
+!SharpSevenZip/SharpSevenZip/arm64/
+!SharpSevenZip/SharpSevenZip/arm64/7z.dll
 bld/
 [Bb]in/
 [Oo]bj/
