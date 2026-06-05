@@ -37,6 +37,7 @@ internal sealed partial class ArchiveExtractCallback : CallbackBase, IArchiveExt
     private uint? _fileIndex;
     private int _filesCount;
     private OutStreamWrapper? _fileStream;
+    private string? _fileName;
     private Stream? _baseStream;
     private bool _directoryStructure;
     private int _currentIndex;
@@ -343,6 +344,7 @@ internal sealed partial class ArchiveExtractCallback : CallbackBase, IArchiveExt
 
                         try
                         {
+                            _fileName = fileName;
                             _fileStream = new OutStreamWrapper(File.Create(fileName), fileName, time, true);
                         }
                         catch (Exception e)
@@ -466,8 +468,16 @@ internal sealed partial class ArchiveExtractCallback : CallbackBase, IArchiveExt
                 {
                     _fileStream.BytesWritten -= IntEventArgsHandler;
                     _fileStream.Dispose();
+                    if (_extractor!.PropagateMarkOfTheWeb)
+                    {
+                        MarkOfTheWeb.Propagate(_extractor.FileName, _fileName!);
+                    }
                 }
                 catch (ObjectDisposedException) { }
+                finally
+                {
+                    _fileName = null;
+                }
                 _fileStream = null;
             }
 

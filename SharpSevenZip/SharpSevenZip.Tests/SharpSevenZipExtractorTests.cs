@@ -3,6 +3,8 @@
 [TestFixture]
 public class SharpSevenZipExtractorTests : TestBase
 {
+    private const string ZoneIdentifier = "[ZoneTransfer]\r\nZoneId=3\r\n";
+
     public static List<TestFile> TestFiles
     {
         get
@@ -272,6 +274,82 @@ public class SharpSevenZipExtractorTests : TestBase
             Assert.That(File.Exists(escapedFile), Is.False,
                 "Path-traversal entry was written outside the extraction directory (zip-slip vulnerability).");
         }
+    }
+
+    [Test]
+    public void ExtractArchive_PropagatesMarkOfTheWebByDefault()
+    {
+        AssertAdsSupported();
+        var archive = Path.GetFullPath(@"TestData\multiple_files.7z");
+        WriteZoneIdentifier(archive);
+
+        using (var extractor = new SharpSevenZipExtractor(archive))
+        {
+            extractor.ExtractArchive(OutputDirectory);
+        }
+
+        Assert.That(ReadZoneIdentifier(Path.Combine(OutputDirectory, "file1.txt")), Is.EqualTo(ZoneIdentifier));
+    }
+
+    [Test]
+    public void ExtractArchive_DoesNotPropagateMarkOfTheWebWhenDisabled()
+    {
+        AssertAdsSupported();
+        var archive = Path.GetFullPath(@"TestData\multiple_files.7z");
+        WriteZoneIdentifier(archive);
+
+        using (var extractor = new SharpSevenZipExtractor(archive))
+        {
+            extractor.PropagateMarkOfTheWeb = false;
+            extractor.ExtractArchive(OutputDirectory);
+        }
+
+        Assert.That(ReadZoneIdentifier(Path.Combine(OutputDirectory, "file1.txt")), Is.Null);
+    }
+
+    private static void AssertAdsSupported()
+    {
+        if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+        {
+            Assert.Ignore("Mark-of-the-Web propagation uses NTFS alternate data streams on Windows.");
+        }
+
+        var probe = Path.Combine(TestContext.CurrentContext.WorkDirectory, "motw-probe.txt");
+        File.WriteAllText(probe, "");
+
+        try
+        {
+            if (!SharpSevenZip.MarkOfTheWeb.TryWriteText(probe, ZoneIdentifier))
+            {
+                Assert.Ignore("The current filesystem does not support Zone.Identifier alternate data streams.");
+            }
+
+            if (ReadZoneIdentifier(probe) != ZoneIdentifier)
+            {
+                Assert.Ignore("The current filesystem does not support Zone.Identifier alternate data streams.");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or NotSupportedException or UnauthorizedAccessException)
+        {
+            Assert.Ignore("The current filesystem does not support Zone.Identifier alternate data streams.");
+        }
+        finally
+        {
+            File.Delete(probe);
+        }
+    }
+
+    private static void WriteZoneIdentifier(string fileName)
+    {
+        if (!SharpSevenZip.MarkOfTheWeb.TryWriteText(fileName, ZoneIdentifier))
+        {
+            Assert.Ignore("The current filesystem does not support Zone.Identifier alternate data streams.");
+        }
+    }
+
+    private static string? ReadZoneIdentifier(string fileName)
+    {
+        return SharpSevenZip.MarkOfTheWeb.TryReadText(fileName, out var content) ? content : null;
     }
 }
 

@@ -379,6 +379,11 @@ public sealed partial class SharpSevenZipExtractor
     /// </summary>
     public bool PreserveDirectoryStructure { get; set; }
 
+    /// <summary>
+    /// Gets or sets the value indicating whether to propagate the archive file's Mark-of-the-Web to extracted files.
+    /// </summary>
+    public bool PropagateMarkOfTheWeb { get; set; } = true;
+
     #endregion
 
     /// <summary>
