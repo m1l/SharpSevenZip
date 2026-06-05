@@ -270,6 +270,20 @@ internal sealed partial class ArchiveExtractCallback : CallbackBase, IArchiveExt
                         {
                             throw new SharpSevenZipArchiveException("Some archive name is null or empty.");
                         }
+
+                        // Prevent directory traversal (zip slip): reject any entry whose fully-resolved
+                        // path escapes the intended extraction directory.
+                        var resolvedFile = Path.GetFullPath(fileName);
+                        var resolvedDir = Path.GetFullPath(_directory!);
+                        if (!resolvedDir.EndsWith(new string(Path.DirectorySeparatorChar, 1), StringComparison.Ordinal))
+                            resolvedDir += Path.DirectorySeparatorChar;
+                        if (!resolvedFile.StartsWith(resolvedDir, Path.DirectorySeparatorChar == '\\'
+                            ? StringComparison.OrdinalIgnoreCase
+                            : StringComparison.Ordinal))
+                        {
+                            throw new SharpSevenZipArchiveException(
+                                $"Archive entry \"{entryName}\" would be extracted outside the destination directory.");
+                        }
                     }
                     catch (Exception e)
                     {

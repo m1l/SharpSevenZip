@@ -11,7 +11,7 @@ public class SharpSevenZipExtractorTests : TestBase
 
             foreach (var file in Directory.GetFiles(Path.Combine(TestContext.CurrentContext.TestDirectory, "TestData")))
             {
-                if (file.Contains("multi") || file.Contains("long_path"))
+                if (file.Contains("multi") || file.Contains("long_path") || file.Contains("traversal"))
                 {
                     continue;
                 }
@@ -249,6 +249,29 @@ public class SharpSevenZipExtractorTests : TestBase
         }
 
         Assert.That(Directory.GetFiles(OutputDirectory), Has.Length.EqualTo(1));
+    }
+
+    [Test]
+    public void ExtractArchive_DirectoryTraversal_IsBlocked()
+    {
+        // A ZIP crafted with an entry named "../../traversal_test.txt" must NOT
+        // write any file outside the destination directory (zip-slip / CVE-class).
+        var destDir = Path.GetFullPath(OutputDirectory);
+        var escapedFile = Path.GetFullPath(Path.Combine(destDir, "..", "..", "traversal_test.txt"));
+
+        try
+        {
+            using var extractor = new SharpSevenZipExtractor(@"TestData\traversal.zip");
+            // The library raises SharpSevenZipArchiveException when a traversal entry is rejected.
+            Assert.Throws<SharpSevenZip.Exceptions.SharpSevenZipArchiveException>(
+                () => extractor.ExtractArchive(OutputDirectory));
+        }
+        finally
+        {
+            // Regardless of the outcome, no file should have escaped the output directory.
+            Assert.That(File.Exists(escapedFile), Is.False,
+                "Path-traversal entry was written outside the extraction directory (zip-slip vulnerability).");
+        }
     }
 }
 
