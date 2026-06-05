@@ -38,6 +38,7 @@ internal sealed partial class ArchiveExtractCallback : CallbackBase, IArchiveExt
     private int _filesCount;
     private OutStreamWrapper? _fileStream;
     private string? _fileName;
+    private byte[]? _markOfTheWeb;
     private Stream? _baseStream;
     private bool _directoryStructure;
     private int _currentIndex;
@@ -133,6 +134,7 @@ internal sealed partial class ArchiveExtractCallback : CallbackBase, IArchiveExt
         _fakeStream = new FakeOutStreamWrapper();
         _fakeStream.BytesWritten += IntEventArgsHandler;
         _extractor = extractor;
+        _markOfTheWeb = extractor.PropagateMarkOfTheWeb ? MarkOfTheWeb.Read(extractor.FileName) : null;
         //GC.AddMemoryPressure(MemoryPressure);
     }
     #endregion
@@ -468,10 +470,7 @@ internal sealed partial class ArchiveExtractCallback : CallbackBase, IArchiveExt
                 {
                     _fileStream.BytesWritten -= IntEventArgsHandler;
                     _fileStream.Dispose();
-                    if (_extractor!.PropagateMarkOfTheWeb)
-                    {
-                        MarkOfTheWeb.Propagate(_extractor.FileName, _fileName!);
-                    }
+                    MarkOfTheWeb.Apply(_markOfTheWeb, _fileName!);
                 }
                 catch (ObjectDisposedException) { }
                 finally

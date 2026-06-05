@@ -14,13 +14,12 @@ internal static partial class MarkOfTheWeb
     private const uint CreateAlways = 2;
     private const uint FileAttributeNormal = 0x00000080;
 
-    public static void Propagate(string? sourceFileName, string destinationFileName)
+    public static byte[]? Read(string? sourceFileName)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
-            string.IsNullOrEmpty(sourceFileName) ||
-            string.IsNullOrEmpty(destinationFileName))
+            string.IsNullOrEmpty(sourceFileName))
         {
-            return;
+            return null;
         }
 
         try
@@ -28,16 +27,41 @@ internal static partial class MarkOfTheWeb
             using var source = OpenRead(sourceFileName + ZoneIdentifierStream);
             if (source == null)
             {
-                return;
+                return null;
             }
 
+            using var content = new MemoryStream();
+            source.CopyTo(content);
+            return content.ToArray();
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    public static void Apply(byte[]? zoneIdentifier, string destinationFileName)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
+            zoneIdentifier == null ||
+            string.IsNullOrEmpty(destinationFileName))
+        {
+            return;
+        }
+
+        try
+        {
             using var destination = OpenWrite(destinationFileName + ZoneIdentifierStream);
             if (destination == null)
             {
                 return;
             }
 
-            source.CopyTo(destination);
+            destination.Write(zoneIdentifier, 0, zoneIdentifier.Length);
         }
         catch (IOException)
         {

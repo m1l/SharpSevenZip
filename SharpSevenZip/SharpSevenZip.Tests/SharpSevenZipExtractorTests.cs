@@ -3,7 +3,8 @@
 [TestFixture]
 public class SharpSevenZipExtractorTests : TestBase
 {
-    private const string ZoneIdentifier = "[ZoneTransfer]\r\nZoneId=3\r\n";
+    private const string ZoneIdentifier = "[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=https://example.com/downloads/\r\nHostUrl=https://example.com/downloads/multiple_files.7z\r\n";
+    private const string ChangedZoneIdentifier = "[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=https://contoso.example/files/\r\nHostUrl=https://contoso.example/files/changed.7z\r\n";
 
     public static List<TestFile> TestFiles
     {
@@ -307,6 +308,33 @@ public class SharpSevenZipExtractorTests : TestBase
         Assert.That(ReadZoneIdentifier(Path.Combine(OutputDirectory, "file1.txt")), Is.Null);
     }
 
+    [Test]
+    public void ExtractArchive_UsesMarkOfTheWebSnapshotReadOnceBeforeExtraction()
+    {
+        AssertAdsSupported();
+        var archive = Path.GetFullPath(@"TestData\multiple_files.7z");
+        WriteZoneIdentifier(archive);
+
+        using (var extractor = new SharpSevenZipExtractor(archive))
+        {
+            extractor.FileExtractionStarted += (_, args) =>
+            {
+                if (args.FileInfo.Index == 0)
+                {
+                    WriteZoneIdentifier(archive, ChangedZoneIdentifier);
+                }
+            };
+
+            extractor.ExtractArchive(OutputDirectory);
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ReadZoneIdentifier(Path.Combine(OutputDirectory, "file1.txt")), Is.EqualTo(ZoneIdentifier));
+            Assert.That(ReadZoneIdentifier(Path.Combine(OutputDirectory, "file2.txt")), Is.EqualTo(ZoneIdentifier));
+        });
+    }
+
     private static void AssertAdsSupported()
     {
         if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
@@ -341,7 +369,12 @@ public class SharpSevenZipExtractorTests : TestBase
 
     private static void WriteZoneIdentifier(string fileName)
     {
-        if (!SharpSevenZip.MarkOfTheWeb.TryWriteText(fileName, ZoneIdentifier))
+        WriteZoneIdentifier(fileName, ZoneIdentifier);
+    }
+
+    private static void WriteZoneIdentifier(string fileName, string content)
+    {
+        if (!SharpSevenZip.MarkOfTheWeb.TryWriteText(fileName, content))
         {
             Assert.Ignore("The current filesystem does not support Zone.Identifier alternate data streams.");
         }
